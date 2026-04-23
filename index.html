@@ -397,10 +397,64 @@
     only-dau 组的 227 位用户中，有 129 人 (<strong>56.8%</strong>) 当天触发的事件集合几乎完全一样 — 都是 PostHog 自动埋点 + 首次启动弹窗。这种高度同质化，强烈暗示这是一个系统行为而非用户行为。
   </p>
 
-  <div class="chart-wrap">
-    <h4>only_dau 组 · Top 事件集合组合 (占比)</h4>
-    <div class="chart-box"><canvas id="barCombos"></canvas></div>
+  <div class="table-wrap" style="margin-top:24px">
+    <table>
+      <thead>
+        <tr>
+          <th class="num" style="width:70px">人数</th>
+          <th>事件集合 (实际埋点名)</th>
+          <th style="width:28%">解读</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="num" style="font-weight:600;color:var(--accent)">129<br><span style="font-weight:400;font-size:11px;color:var(--ink-mute)">56.8%</span></td>
+          <td class="event" style="font-size:12px;line-height:1.9">
+            <code>$screen</code> <code>$set</code> <code>dau_ping</code> <code>nudge_card_view</code> <code>nudge_feed_result</code> <code>push_permission_prompt</code> <code>screen_view</code>
+          </td>
+          <td style="font-size:13px;color:var(--ink-soft)">PostHog 自动埋点 (<code>$screen</code>/<code>$set</code>/<code>screen_view</code>) + 心跳 + 推送权限弹窗 + nudge feed 预加载。典型的后台唤醒渲染路径。</td>
+        </tr>
+        <tr>
+          <td class="num" style="font-weight:600;color:var(--accent)">55<br><span style="font-weight:400;font-size:11px;color:var(--ink-mute)">24.2%</span></td>
+          <td class="event" style="font-size:12px;line-height:1.9">
+            <code>$screen</code> <code>$set</code> <code>Application Updated</code> <code>dau_ping</code> <code>nudge_card_view</code> <code>nudge_feed_result</code> <code>push_permission_prompt</code> <code>screen_view</code>
+          </td>
+          <td style="font-size:13px;color:var(--ink-soft)">上一行 + <code>Application Updated</code>。App 后台静默更新完成后，SDK 初始化顺手打了一套心跳与 nudge feed。</td>
+        </tr>
+        <tr>
+          <td class="num" style="font-weight:500">9<br><span style="font-weight:400;font-size:11px;color:var(--ink-mute)">4.0%</span></td>
+          <td class="event" style="font-size:12px;line-height:1.9">
+            <code>$screen</code> <code>$set</code> <code>dau_ping</code> <code>push_permission_prompt</code> <code>screen_view</code>
+          </td>
+          <td style="font-size:13px;color:var(--ink-soft)">基础自动埋点，没触发 nudge feed。App 在后台启动但没拉取 nudge 内容。</td>
+        </tr>
+        <tr>
+          <td class="num" style="font-weight:500">9<br><span style="font-weight:400;font-size:11px;color:var(--ink-mute)">4.0%</span></td>
+          <td class="event" style="font-size:12px;line-height:1.9">
+            <code>$screen</code> <code>$set</code> <code>dau_ping</code> <code>nudge_feed_result</code> <code>push_permission_prompt</code> <code>screen_view</code>
+          </td>
+          <td style="font-size:13px;color:var(--ink-soft)">拉到了 <code>nudge_feed_result</code> 但没有 <code>nudge_card_view</code>。feed 请求返回但没有进行卡片渲染。</td>
+        </tr>
+        <tr>
+          <td class="num" style="font-weight:500">6<br><span style="font-weight:400;font-size:11px;color:var(--ink-mute)">2.6%</span></td>
+          <td class="event" style="font-size:12px;line-height:1.9">
+            <code>$screen</code> <code>$set</code> <code>Application Updated</code> <code>dau_ping</code> <code>push_permission_prompt</code> <code>screen_view</code>
+          </td>
+          <td style="font-size:13px;color:var(--ink-soft)">版本更新 + 基础自动埋点，无 nudge 相关事件。</td>
+        </tr>
+        <tr>
+          <td class="num" style="font-weight:500">3<br><span style="font-weight:400;font-size:11px;color:var(--ink-mute)">1.3%</span></td>
+          <td class="event" style="font-size:12px;line-height:1.9">
+            <code>$screen</code> <code>$set</code> <code>Application Updated</code> <code>dau_ping</code> <code>onboarding_page_view</code> <code>push_permission_prompt</code> <code>screen_view</code>
+          </td>
+          <td style="font-size:13px;color:var(--ink-soft)">新用户或更新后看到 onboarding 页面但未完成激活，也没有后续主动交互事件。</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
+  <p style="font-size:13px;color:var(--ink-mute);margin-top:12px">
+    <strong style="color:var(--ink-soft)">关键观察:</strong> 所有 Top 组合中，<strong>没有任何一种包含 <code>Application Opened</code>、<code>auto_button_click</code>、<code>home_page_view</code> 或任何业务交互埋点</strong> — 说明这些用户的进程虽然"活着"，但从未走到"前台激活 → 用户交互"的路径上。
+  </p>
 
   <div class="insight-grid">
     <div class="insight">
@@ -673,39 +727,6 @@
       },
       scales:{
         x:{beginAtZero:true, max:100, grid:{color:'#e4dfd4'}, ticks:{color:'#8a8a8a', callback:v=>v+'%'}},
-        y:{grid:{display:false}, ticks:{color:'#4a4a4a', font:{size:11}}}
-      }
-    }
-  });
-
-  // Combos (only_dau)
-  const combos = [
-    {pct:56.8, count:129, label:'SDK 自动埋点 + push 弹窗 + nudge feed'},
-    {pct:24.2, count:55, label:'上面那套 + Application Updated'},
-    {pct:4.0, count:9, label:'SDK 自动埋点 + push 弹窗 (无 nudge card)'},
-    {pct:4.0, count:9, label:'SDK 自动埋点 + push 弹窗 + nudge feed (无 card)'},
-    {pct:2.6, count:6, label:'SDK 自动埋点 + push 弹窗 + App 更新'},
-    {pct:1.3, count:3, label:'SDK 自动埋点 + onboarding 页面曝光'},
-  ];
-  new Chart(document.getElementById('barCombos'),{
-    type:'bar',
-    data:{
-      labels: combos.map(c=>c.label),
-      datasets:[{
-        data: combos.map(c=>c.count),
-        backgroundColor:'#c8553d',
-        borderRadius:2, borderWidth:0
-      }]
-    },
-    options:{
-      indexAxis:'y',
-      responsive:true, maintainAspectRatio:false,
-      plugins:{
-        legend:{display:false},
-        tooltip:{callbacks:{label:(ctx)=>`${ctx.parsed.x} 人 (${combos[ctx.dataIndex].pct}% 组内占比)`}}
-      },
-      scales:{
-        x:{beginAtZero:true, grid:{color:'#e4dfd4'}, ticks:{color:'#8a8a8a'}, title:{display:true, text:'用户数', color:'#8a8a8a', font:{size:11}}},
         y:{grid:{display:false}, ticks:{color:'#4a4a4a', font:{size:11}}}
       }
     }
