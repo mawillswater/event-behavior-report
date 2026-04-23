@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Jovida · dau_ping vs Application Opened 行为差异分析</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#faf8f4;
+    --ink:#1a1a1a;
+    --ink-soft:#4a4a4a;
+    --ink-mute:#8a8a8a;
+    --line:#e4dfd4;
+    --paper:#fffdf7;
+    --accent:#c8553d;
+    --accent-soft:#e8b4a7;
+    --warn:#d4a017;
+    --good:#5b7c5a;
+    --bar-a:#c8553d;
+    --bar-b:#2a4a3a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--bg);color:var(--ink);font-family:'Inter','Noto Serif SC',system-ui,sans-serif;-webkit-font-smoothing:antialiased;line-height:1.65}
+  body{padding:0 0 120px}
+
+  .hero{
+    padding:120px 8vw 80px;
+    border-bottom:1px solid var(--line);
+    background:
+      radial-gradient(circle at 90% 20%, rgba(200,85,61,0.06), transparent 50%),
+      radial-gradient(circle at 10% 80%, rgba(42,74,58,0.04), transparent 50%),
+      var(--bg);
+    position:relative;
+  }
+  .hero::before{
+    content:"";
+    position:absolute; top:40px; left:8vw;
+    width:60px; height:2px; background:var(--accent);
+  }
+  .hero .eyebrow{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    letter-spacing:0.2em;
+    text-transform:uppercase;
+    color:var(--ink-mute);
+    margin-bottom:32px;
+    margin-top:16px;
+  }
+  .hero h1{
+    font-family:'Noto Serif SC',serif;
+    font-weight:700;
+    font-size:clamp(36px, 5.5vw, 68px);
+    line-height:1.1;
+    letter-spacing:-0.02em;
+    max-width:16ch;
+    margin-bottom:28px;
+  }
+  .hero h1 em{
+    font-style:normal;
+    color:var(--accent);
+    font-family:'Inter',sans-serif;
+    font-weight:400;
+  }
+  .hero .sub{
+    font-size:19px;
+    color:var(--ink-soft);
+    max-width:70ch;
+    margin-bottom:40px;
+    font-weight:300;
+  }
+  .hero .meta{
+    display:flex; gap:40px; flex-wrap:wrap;
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+    color:var(--ink-mute);
+    border-top:1px solid var(--line);
+    padding-top:24px;
+    max-width:800px;
+  }
+  .hero .meta span strong{color:var(--ink);font-weight:500;display:block;margin-top:4px;font-size:13px}
+
+  section{padding:80px 8vw;border-bottom:1px solid var(--line)}
+  .section-label{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    letter-spacing:0.2em;
+    text-transform:uppercase;
+    color:var(--accent);
+    margin-bottom:16px;
+  }
+  h2{
+    font-family:'Noto Serif SC',serif;
+    font-weight:600;
+    font-size:clamp(28px, 3.5vw, 42px);
+    letter-spacing:-0.01em;
+    margin-bottom:24px;
+    max-width:24ch;
+  }
+  h3{
+    font-family:'Noto Serif SC',serif;
+    font-weight:600;
+    font-size:22px;
+    margin:48px 0 16px;
+  }
+  p{color:var(--ink-soft);font-size:16px;max-width:70ch;margin-bottom:16px}
+  p.lede{font-size:19px;color:var(--ink);max-width:65ch;line-height:1.6;margin-bottom:32px;font-weight:400}
+
+  /* KPI grid */
+  .kpi-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:1px;
+    background:var(--line);
+    border:1px solid var(--line);
+    margin:32px 0 16px;
+  }
+  .kpi{
+    background:var(--paper);
+    padding:32px 28px;
+  }
+  .kpi .label{
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;
+    letter-spacing:0.15em;
+    text-transform:uppercase;
+    color:var(--ink-mute);
+    margin-bottom:14px;
+  }
+  .kpi .value{
+    font-size:44px;
+    font-weight:700;
+    font-family:'Noto Serif SC',serif;
+    line-height:1;
+    margin-bottom:8px;
+    letter-spacing:-0.02em;
+  }
+  .kpi .value.accent{color:var(--accent)}
+  .kpi .value.good{color:var(--good)}
+  .kpi .delta{
+    font-family:'JetBrains Mono',monospace;
+    font-size:13px;
+    color:var(--ink-soft);
+  }
+  .kpi .delta .up{color:var(--accent)}
+  .kpi .delta .dn{color:var(--good)}
+
+  /* Table */
+  .table-wrap{margin:24px 0;border:1px solid var(--line);background:var(--paper)}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{padding:14px 20px;text-align:left;border-bottom:1px solid var(--line)}
+  th{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--ink-mute);
+    font-weight:500;
+    background:var(--bg);
+  }
+  td.num{font-family:'JetBrains Mono',monospace;text-align:right}
+  td.event{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--ink)}
+  tr:last-child td{border-bottom:none}
+  .bar-cell{position:relative;min-width:180px}
+  .bar-cell .bar{
+    position:absolute;left:20px;top:50%;transform:translateY(-50%);
+    height:20px;background:var(--accent-soft);opacity:0.35;border-radius:2px;
+  }
+  .bar-cell .bar.b{background:#b4ccc3}
+  .bar-cell .val{position:relative;z-index:1;font-family:'JetBrains Mono',monospace;padding-left:0}
+
+  /* Chart containers */
+  .chart-wrap{
+    background:var(--paper);
+    border:1px solid var(--line);
+    padding:32px;
+    margin:24px 0;
+  }
+  .chart-wrap h4{
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--ink-mute);
+    margin-bottom:20px;
+    font-weight:500;
+  }
+  .chart-box{position:relative;height:420px}
+
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);margin:24px 0}
+  .split > div{background:var(--paper);padding:32px}
+  .split h4{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:var(--ink-mute);margin-bottom:20px;font-weight:500}
+  .split .count{font-size:38px;font-weight:700;font-family:'Noto Serif SC',serif;line-height:1}
+
+  /* Verdict card */
+  .verdict{
+    background:#1a1a1a;
+    color:#faf8f4;
+    padding:64px 56px;
+    margin:40px 0;
+    position:relative;
+    overflow:hidden;
+  }
+  .verdict::before{
+    content:"";
+    position:absolute; top:0;left:0;width:4px;height:100%;background:var(--accent);
+  }
+  .verdict .tag{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.2em;color:var(--accent-soft);margin-bottom:20px;text-transform:uppercase}
+  .verdict h3{color:#faf8f4;font-size:28px;margin:0 0 20px;font-family:'Noto Serif SC',serif}
+  .verdict p{color:#d4d0c6;font-size:17px;max-width:70ch;margin-bottom:16px}
+  .verdict ul{color:#d4d0c6;font-size:16px;padding-left:20px;margin:16px 0}
+  .verdict ul li{margin-bottom:12px}
+  .verdict strong{color:#fff;font-weight:600}
+
+  /* Insight blocks */
+  .insight-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;margin:32px 0}
+  .insight{
+    background:var(--paper);
+    border-left:3px solid var(--accent);
+    padding:28px 32px;
+  }
+  .insight .n{
+    font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.15em;
+    color:var(--accent);margin-bottom:12px;text-transform:uppercase;
+  }
+  .insight h4{
+    font-family:'Noto Serif SC',serif;font-size:18px;font-weight:600;margin-bottom:10px;
+  }
+  .insight p{font-size:14px;margin:0}
+
+  /* footer */
+  footer{padding:60px 8vw;color:var(--ink-mute);font-size:13px;font-family:'JetBrains Mono',monospace}
+  footer a{color:var(--ink-soft);text-decoration:none;border-bottom:1px solid var(--line)}
+
+  /* highlight mark */
+  mark{background:linear-gradient(transparent 60%, rgba(200,85,61,0.25) 60%);padding:0 2px;color:var(--ink)}
+
+  @media (max-width:720px){
+    .hero{padding:80px 6vw 60px}
+    section{padding:60px 6vw}
+    .split{grid-template-columns:1fr}
+    .verdict{padding:48px 32px}
+    .kpi .value{font-size:34px}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="eyebrow">Data Analysis / Behavioral Segmentation</div>
+  <h1>Jovida 用户中，<em>74%</em> 的"日活"<br>从未真正打开过 App</h1>
+  <p class="sub">
+    2026-04-21 这天，有 307 位 iOS 用户触发了 <code>dau_ping</code> 心跳埋点；其中 227 人从未触发 <code>Application Opened</code>，也几乎没有任何主动交互 — 他们更像被系统后台拉起的"幽灵用户"，而非真实 DAU。
+  </p>
+  <div class="meta">
+    <span>Date<strong>2026-04-21 (UTC)</strong></span>
+    <span>Source<strong>PostHog Export · 29,826 events</strong></span>
+    <span>Cohort<strong>307 Users · 1 Day</strong></span>
+    <span>Author<strong>Product Analytics</strong></span>
+  </div>
+</header>
+
+<!-- SECTION 1: CORE FINDING -->
+<section>
+  <div class="section-label">01 / 核心结论</div>
+  <h2>一场看似异常的埋点差异，<br>实则是"真实活跃"定义的问题。</h2>
+  <p class="lede">
+    <code>Application Opened</code> 是 <code>dau_ping</code> 的严格子集。所有触发前者的用户都触发了后者，但反过来，74% 触发 <code>dau_ping</code> 的用户从未触发 <code>Application Opened</code>，也没有任何点击、记食物、聊天行为。
+  </p>
+
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="label">总用户数</div>
+      <div class="value">307</div>
+      <div class="delta">触发过任一事件的独立用户</div>
+    </div>
+    <div class="kpi">
+      <div class="label">只有 dau_ping</div>
+      <div class="value accent">227</div>
+      <div class="delta"><span class="up">↑ 74.0%</span> of total</div>
+    </div>
+    <div class="kpi">
+      <div class="label">两者都有</div>
+      <div class="value good">80</div>
+      <div class="delta">26.0% of total</div>
+    </div>
+    <div class="kpi">
+      <div class="label">只有 App Opened</div>
+      <div class="value">0</div>
+      <div class="delta">完全不存在该情况</div>
+    </div>
+  </div>
+
+  <div class="chart-wrap">
+    <h4>用户分布 · 按事件触发情况</h4>
+    <div class="chart-box" style="height:140px"><canvas id="donutSplit"></canvas></div>
+  </div>
+</section>
+
+<!-- SECTION 2: BEHAVIOR COMPARISON -->
+<section>
+  <div class="section-label">02 / 行为强度对比</div>
+  <h2>两组用户的活跃度<br>差距，是数量级的。</h2>
+  <p class="lede">
+    同样都在 2026-04-21 这天，"两者都有"组的用户人均事件是"只有 dau_ping"组的 <mark>4.3 倍</mark>，涉及的事件类型是 <mark>2.9 倍</mark>。但 Session 数却几乎一致 — 说明差异不在登录次数，而在<strong>单次 session 内的行为深度</strong>。
+  </p>
+
+  <div class="split">
+    <div>
+      <h4>只有 dau_ping · 227 用户</h4>
+      <div class="count" style="color:var(--accent)">51.9</div>
+      <p style="margin-top:8px;font-size:13px">平均事件数 / 用户</p>
+      <div style="margin-top:24px;border-top:1px solid var(--line);padding-top:20px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:10px"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink-mute)">唯一事件类型</span><strong>7.1</strong></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:10px"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink-mute)">Session 数</span><strong>4.4</strong></div>
+        <div style="display:flex;justify-content:space-between"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink-mute)">事件中位数</span><strong>41</strong></div>
+      </div>
+    </div>
+    <div>
+      <h4>两者都有 · 80 用户</h4>
+      <div class="count" style="color:var(--good)">225.7</div>
+      <p style="margin-top:8px;font-size:13px">平均事件数 / 用户</p>
+      <div style="margin-top:24px;border-top:1px solid var(--line);padding-top:20px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:10px"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink-mute)">唯一事件类型</span><strong>20.3</strong></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:10px"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink-mute)">Session 数</span><strong>4.6</strong></div>
+        <div style="display:flex;justify-content:space-between"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink-mute)">事件中位数</span><strong>183</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="chart-wrap">
+    <h4>平均事件数 · 分组对比</h4>
+    <div class="chart-box" style="height:260px"><canvas id="barVolume"></canvas></div>
+  </div>
+</section>
+
+<!-- SECTION 3: EVENT COVERAGE MATRIX -->
+<section>
+  <div class="section-label">03 / 事件触达率</div>
+  <h2>核心行为事件,<br>在 only-dau 组几乎为零。</h2>
+  <p class="lede">
+    列出 Jovida App 的关键行为事件触达率 (即每组中触发过该事件的用户比例)。<code>only_dau</code> 组在所有"主动交互"类事件上都是接近 0%，而"两者都有"组基本都在 50%–95% 区间。
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Event</th>
+          <th class="num">Only dau_ping (n=227)</th>
+          <th class="num">Both (n=80)</th>
+          <th class="num">Gap</th>
+        </tr>
+      </thead>
+      <tbody id="coverage-table"></tbody>
+    </table>
+  </div>
+
+  <div class="chart-wrap">
+    <h4>关键事件触达率对比</h4>
+    <div class="chart-box"><canvas id="barCoverage"></canvas></div>
+  </div>
+</section>
+
+<!-- SECTION 4: BEHAVIOR PROFILE -->
+<section>
+  <div class="section-label">04 / 用户画像</div>
+  <h2>57% 的 only-dau 用户,<br>事件组合完全一致。</h2>
+  <p class="lede">
+    only-dau 组的 227 位用户中，有 129 人 (<strong>56.8%</strong>) 当天触发的事件集合几乎完全一样 — 都是 PostHog 自动埋点 + 首次启动弹窗。这种高度同质化，强烈暗示这是一个系统行为而非用户行为。
+  </p>
+
+  <div class="chart-wrap">
+    <h4>only_dau 组 · Top 事件集合组合 (占比)</h4>
+    <div class="chart-box"><canvas id="barCombos"></canvas></div>
+  </div>
+
+  <div class="insight-grid">
+    <div class="insight">
+      <div class="n">Pattern A · 56.8%</div>
+      <h4>系统自动拍摄</h4>
+      <p>screen_view + $screen + $set + nudge_feed_result + push_permission_prompt — 全部是 SDK 自动触发，没有任何用户点击或输入。</p>
+    </div>
+    <div class="insight">
+      <div class="n">Pattern B · 24.2%</div>
+      <h4>静默版本更新</h4>
+      <p>在 Pattern A 基础上多了 Application Updated。说明 App 在后台被系统更新完成，心跳上报了但用户没打开。</p>
+    </div>
+    <div class="insight">
+      <div class="n">Missing · &lt;2%</div>
+      <h4>零交互证据</h4>
+      <p>home_page_view、auto_button_click、food_log_start、chat_page_view 触达率全部低于 1.3% — 实际上就是没有任何主动交互。</p>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 5: DIMENSIONS -->
+<section>
+  <div class="section-label">05 / 维度切片</div>
+  <h2>平台、SDK、版本<br>都不是差异来源。</h2>
+  <p class="lede">
+    如果是埋点 bug 或 SDK 版本问题，应该能从平台分布里看出来。但事实是，两组用户几乎完全重叠 — 100% iOS，100% posthog-ios，版本分布也基本一致。差异只可能来自<strong>触发时机的定义</strong>。
+  </p>
+
+  <div class="chart-wrap">
+    <h4>App 版本分布 · 按分组</h4>
+    <div class="chart-box" style="height:320px"><canvas id="barVersion"></canvas></div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>维度</th>
+          <th class="num">Only dau_ping</th>
+          <th class="num">Both</th>
+          <th>观察</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="event">平台 (iOS)</td><td class="num">100.0%</td><td class="num">98.8%</td><td style="color:var(--ink-soft);font-size:13px">几乎无差异</td></tr>
+        <tr><td class="event">SDK lib</td><td class="num">posthog-ios</td><td class="num">posthog-ios</td><td style="color:var(--ink-soft);font-size:13px">完全一致</td></tr>
+        <tr><td class="event">version 0.13.1</td><td class="num">70.5%</td><td class="num">66.2%</td><td style="color:var(--ink-soft);font-size:13px">略偏高但不显著</td></tr>
+        <tr><td class="event">version 0.14.0</td><td class="num">23.8%</td><td class="num">33.8%</td><td style="color:var(--ink-soft);font-size:13px">新版本略偏活跃</td></tr>
+        <tr><td class="event">version &lt; 0.13</td><td class="num">5.7%</td><td class="num">0.0%</td><td style="color:var(--ink-soft);font-size:13px">老版本全在 only_dau</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- VERDICT -->
+<section style="background:#faf8f4">
+  <div class="section-label">06 / 结论与行动</div>
+  <h2>这不是数据丢失,<br>是埋点定义不一致。</h2>
+
+  <div class="verdict">
+    <div class="tag">Hypothesis · Most Likely</div>
+    <h3>dau_ping 被后台任务触发，Application Opened 只在前台激活时触发。</h3>
+    <p>
+      227 位 only-dau 用户的共同特征：<strong>没有任何点击、滚动、输入类事件</strong>。最合理的解释是 iOS 在后台唤醒了 App (推送、定位、Background Refresh 等)，SDK 顺手上报了 dau_ping，但用户本人并没有把 App 切到前台。
+    </p>
+    <ul>
+      <li><strong>dau_ping</strong> 似乎在 SDK 初始化或后台 fetch 时就会发送，触发条件过宽</li>
+      <li><strong>Application Opened</strong> 绑定 <code>applicationDidBecomeActive</code> 生命周期，只有真实激活才触发</li>
+      <li>结果：用 dau_ping 计算的 DAU <strong>高估了 4 倍真实活跃用户数</strong></li>
+    </ul>
+  </div>
+
+  <h3>建议行动</h3>
+  <div class="insight-grid">
+    <div class="insight">
+      <div class="n">Action · 01</div>
+      <h4>对齐埋点触发条件</h4>
+      <p>检查客户端代码，确认 dau_ping 和 Application Opened 的触发时机。如果 dau_ping 在后台也上报，应改为仅在前台激活时触发。</p>
+    </div>
+    <div class="insight">
+      <div class="n">Action · 02</div>
+      <h4>启用 PostHog 原生 DAU</h4>
+      <p>用 Application Opened 或 home_page_view 等主动交互事件定义 DAU，可能更贴近业务"真实活跃"的直觉。</p>
+    </div>
+    <div class="insight">
+      <div class="n">Action · 03</div>
+      <h4>重新核对历史 DAU 趋势</h4>
+      <p>过往报告里的 DAU 数字可能被 dau_ping 高估了约 3~4 倍。重要的业务决策 (留存、激活率) 需要用新口径重新核算。</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  Jovida Product Analytics · Report generated 2026-04-23<br>
+  Source data: PostHog export <code>export-2026-04-22-161742.csv</code> · 29,826 events · 307 unique users<br>
+  <a href="https://github.com/mawillswater/event-behavior-report">View on GitHub</a>
+</footer>
+
+<script>
+  // Data embedded inline
+  const coverage = [
+    {event:'Application Opened', only:0.0, both:100.0},
+    {event:'home_page_view', only:0.9, both:95.0},
+    {event:'app_enter_background', only:1.3, both:93.8},
+    {event:'Application Backgrounded', only:0.0, both:91.2},
+    {event:'auto_button_click', only:0.0, both:86.2},
+    {event:'food_log_start', only:0.0, both:72.5},
+    {event:'food_scan_result', only:0.0, both:67.5},
+    {event:'food_scan_action', only:0.0, both:65.0},
+    {event:'chat_page_view', only:0.0, both:53.8},
+    {event:'burning_module_click', only:0.0, both:50.0},
+    {event:'food_log_result_view', only:0.0, both:45.0},
+    {event:'Application Updated', only:30.8, both:43.8},
+    {event:'main_add_menu_click', only:0.0, both:37.5},
+    {event:'burn_summary_popup_view', only:0.0, both:27.5},
+    {event:'message_receive', only:0.4, both:27.5},
+    {event:'message_send', only:0.0, both:20.0},
+    {event:'onboarding_page_view', only:3.5, both:17.5},
+    {event:'food_entry_action', only:0.0, both:15.0},
+    {event:'nudge_card_click', only:0.0, both:13.8},
+    {event:'push_notification_received', only:0.4, both:10.0},
+    {event:'paywall_view', only:0.0, both:10.0},
+    {event:'login_click', only:0.0, both:8.8},
+    {event:'user_login', only:0.0, both:8.8},
+  ];
+
+  // Build coverage table
+  const tbody = document.getElementById('coverage-table');
+  coverage.forEach(row=>{
+    const gap = row.both - row.only;
+    const maxW = 150;
+    tbody.innerHTML += `
+      <tr>
+        <td class="event">${row.event}</td>
+        <td class="num bar-cell">
+          <div class="bar" style="width:${row.only*1.5}px"></div>
+          <span class="val">${row.only.toFixed(1)}%</span>
+        </td>
+        <td class="num bar-cell">
+          <div class="bar b" style="width:${row.both*1.5}px"></div>
+          <span class="val">${row.both.toFixed(1)}%</span>
+        </td>
+        <td class="num" style="color:${gap>50?'var(--accent)':'var(--ink-soft)'};font-weight:${gap>50?'600':'400'}">+${gap.toFixed(1)}%</td>
+      </tr>
+    `;
+  });
+
+  const font = {family:'Inter, sans-serif', size:12};
+  Chart.defaults.font.family = "'Inter','Noto Serif SC',sans-serif";
+  Chart.defaults.color = '#4a4a4a';
+
+  // Donut (stacked horizontal bar actually, works better visually)
+  new Chart(document.getElementById('donutSplit'),{
+    type:'bar',
+    data:{
+      labels:['用户分布'],
+      datasets:[
+        {label:'只有 dau_ping', data:[227], backgroundColor:'#c8553d', borderWidth:0},
+        {label:'两者都有', data:[80], backgroundColor:'#2a4a3a', borderWidth:0},
+      ]
+    },
+    options:{
+      indexAxis:'y',
+      responsive:true, maintainAspectRatio:false,
+      scales:{
+        x:{stacked:true, display:true, grid:{display:false}, ticks:{color:'#8a8a8a'}},
+        y:{stacked:true, display:false}
+      },
+      plugins:{
+        legend:{position:'bottom', align:'start', labels:{boxWidth:12, padding:16, font:{size:12}}},
+        tooltip:{callbacks:{
+          label:(ctx)=>`${ctx.dataset.label}: ${ctx.parsed.x} 人 (${(ctx.parsed.x/307*100).toFixed(1)}%)`
+        }}
+      }
+    }
+  });
+
+  new Chart(document.getElementById('barVolume'),{
+    type:'bar',
+    data:{
+      labels:['人均事件数','唯一事件类型','Session 数'],
+      datasets:[
+        {label:'只有 dau_ping', data:[51.9, 7.1, 4.4], backgroundColor:'#c8553d', borderRadius:2, borderWidth:0},
+        {label:'两者都有', data:[225.7, 20.3, 4.6], backgroundColor:'#2a4a3a', borderRadius:2, borderWidth:0}
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{position:'bottom', labels:{boxWidth:12, padding:16}},
+      },
+      scales:{
+        y:{beginAtZero:true, grid:{color:'#e4dfd4'}, ticks:{color:'#8a8a8a'}},
+        x:{grid:{display:false}, ticks:{color:'#4a4a4a', font:{weight:'500'}}}
+      }
+    }
+  });
+
+  // Coverage top 14
+  const topCov = coverage.slice(0, 14);
+  new Chart(document.getElementById('barCoverage'),{
+    type:'bar',
+    data:{
+      labels: topCov.map(r=>r.event),
+      datasets:[
+        {label:'只有 dau_ping', data:topCov.map(r=>r.only), backgroundColor:'#c8553d', borderRadius:2, borderWidth:0},
+        {label:'两者都有', data:topCov.map(r=>r.both), backgroundColor:'#2a4a3a', borderRadius:2, borderWidth:0}
+      ]
+    },
+    options:{
+      indexAxis:'y',
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{position:'bottom', labels:{boxWidth:12, padding:16}},
+        tooltip:{callbacks:{label:(ctx)=>`${ctx.dataset.label}: ${ctx.parsed.x.toFixed(1)}%`}}
+      },
+      scales:{
+        x:{beginAtZero:true, max:100, grid:{color:'#e4dfd4'}, ticks:{color:'#8a8a8a', callback:v=>v+'%'}},
+        y:{grid:{display:false}, ticks:{color:'#4a4a4a', font:{size:11}}}
+      }
+    }
+  });
+
+  // Combos (only_dau)
+  const combos = [
+    {pct:56.8, count:129, label:'SDK 自动埋点 + push 弹窗 + nudge feed'},
+    {pct:24.2, count:55, label:'上面那套 + Application Updated'},
+    {pct:4.0, count:9, label:'SDK 自动埋点 + push 弹窗 (无 nudge card)'},
+    {pct:4.0, count:9, label:'SDK 自动埋点 + push 弹窗 + nudge feed (无 card)'},
+    {pct:2.6, count:6, label:'SDK 自动埋点 + push 弹窗 + App 更新'},
+    {pct:1.3, count:3, label:'SDK 自动埋点 + onboarding 页面曝光'},
+  ];
+  new Chart(document.getElementById('barCombos'),{
+    type:'bar',
+    data:{
+      labels: combos.map(c=>c.label),
+      datasets:[{
+        data: combos.map(c=>c.count),
+        backgroundColor:'#c8553d',
+        borderRadius:2, borderWidth:0
+      }]
+    },
+    options:{
+      indexAxis:'y',
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:(ctx)=>`${ctx.parsed.x} 人 (${combos[ctx.dataIndex].pct}% 组内占比)`}}
+      },
+      scales:{
+        x:{beginAtZero:true, grid:{color:'#e4dfd4'}, ticks:{color:'#8a8a8a'}, title:{display:true, text:'用户数', color:'#8a8a8a', font:{size:11}}},
+        y:{grid:{display:false}, ticks:{color:'#4a4a4a', font:{size:11}}}
+      }
+    }
+  });
+
+  // Version distribution
+  new Chart(document.getElementById('barVersion'),{
+    type:'bar',
+    data:{
+      labels:['0.13.1','0.14.0','0.11.0','0.13.0','0.10.0'],
+      datasets:[
+        {label:'只有 dau_ping', data:[70.5, 23.8, 3.5, 1.8, 0.4], backgroundColor:'#c8553d', borderRadius:2, borderWidth:0},
+        {label:'两者都有', data:[66.2, 33.8, 0, 0, 0], backgroundColor:'#2a4a3a', borderRadius:2, borderWidth:0}
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{position:'bottom', labels:{boxWidth:12, padding:16}},
+        tooltip:{callbacks:{label:(ctx)=>`${ctx.dataset.label}: ${ctx.parsed.y}%`}}
+      },
+      scales:{
+        y:{beginAtZero:true, grid:{color:'#e4dfd4'}, ticks:{color:'#8a8a8a', callback:v=>v+'%'}},
+        x:{grid:{display:false}, ticks:{color:'#4a4a4a', font:{weight:'500'}}}
+      }
+    }
+  });
+</script>
+</body>
+</html>
