@@ -458,6 +458,53 @@
   <p style="font-size:14px;color:var(--ink-mute);margin-top:16px">
     <strong style="color:var(--ink-soft)">注:</strong> 225 位"只有 screen_view 无 Application Opened"的用户，行为画像与"只有 dau_ping"组完全一致 — auto_button_click / food_log_start / chat_page_view 触达率均为 0%，连 Application Backgrounded 都只有 0%。这进一步印证了差异不来自某个埋点 bug，而是来自<mark>触发条件的宽严</mark>。
   </p>
+
+  <h3 style="margin-top:56px">PostHog 官方定义（iOS SDK）</h3>
+  <p style="margin-bottom:20px">直接引用 PostHog 官方文档，坐实三个埋点在<strong>触发生命周期</strong>上的本质差异。</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Event</th>
+          <th>官方触发定义（英文原文）</th>
+          <th>绑定生命周期</th>
+          <th class="num">后台能触发?</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="event">$screen / screen_view</td>
+          <td style="font-size:13px;color:var(--ink-soft);font-style:italic">"when the user navigates (if using UIViewController)" · captureScreenViews default <code>true</code></td>
+          <td style="font-size:13px">UIViewController 进入视图层级 (method swizzling on <code>viewDidAppear</code>)</td>
+          <td class="num" style="color:var(--accent);font-weight:600">✅ 会</td>
+        </tr>
+        <tr>
+          <td class="event">Application Opened</td>
+          <td style="font-size:13px;color:var(--ink-soft);font-style:italic">"when the app is opened from a closed state or when the app comes to the foreground (e.g. from the app switcher)"</td>
+          <td style="font-size:13px"><code>applicationDidBecomeActive</code></td>
+          <td class="num" style="color:var(--good);font-weight:600">❌ 不会</td>
+        </tr>
+        <tr>
+          <td class="event">Application Backgrounded</td>
+          <td style="font-size:13px;color:var(--ink-soft);font-style:italic">"when the app is sent to the background by the user"</td>
+          <td style="font-size:13px"><code>applicationDidEnterBackground</code></td>
+          <td class="num" style="color:var(--good);font-weight:600">❌ 不会</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p style="font-size:14px;color:var(--ink-soft);margin-top:20px">
+    结论：iOS 允许 App 在 <strong>Background Fetch / Silent Push / Location</strong> 等后台场景里被唤醒执行代码而不进入前台。只要代码路径里创建了任何 UIViewController（例如后台预渲染 nudge feed），<code>captureScreenViews</code> 就会通过 method swizzling 自动打出 <code>$screen</code> —— 但 <code>didBecomeActive</code> 从未被调用，所以 <code>Application Opened</code> 缺失。这和数据中 225 位用户 100% 有 screen_view、0% 有 Application Opened 和 Application Backgrounded 的现象<mark>完美自洽</mark>。
+  </p>
+
+  <p style="font-size:13px;color:var(--ink-mute);margin-top:12px;font-family:'JetBrains Mono',monospace">
+    Source:
+    <a style="color:var(--ink-soft);border-bottom:1px solid var(--line);text-decoration:none" href="https://posthog.com/docs/libraries/ios/usage">posthog.com/docs/libraries/ios/usage</a> ·
+    <a style="color:var(--ink-soft);border-bottom:1px solid var(--line);text-decoration:none" href="https://posthog.com/docs/libraries/ios/configuration">/configuration</a> ·
+    <a style="color:var(--ink-soft);border-bottom:1px solid var(--line);text-decoration:none" href="https://posthog.com/docs/product-analytics/autocapture">/autocapture</a>
+  </p>
 </section>
 
 <!-- VERDICT -->
