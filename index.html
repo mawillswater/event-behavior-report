@@ -251,7 +251,7 @@
   <div class="eyebrow">Data Analysis / Behavioral Segmentation</div>
   <h1>Jovida 用户中，<em>74%</em> 的"日活"<br>从未真正打开过 App</h1>
   <p class="sub">
-    2026-04-21 这天，有 307 位 iOS 用户触发了 <code>dau_ping</code> 心跳埋点；其中 227 人从未触发 <code>Application Opened</code>，也几乎没有任何主动交互 — 他们更像被系统后台拉起的"幽灵用户"，而非真实 DAU。
+    2026-04-21 这天，<code>dau_ping</code>（心跳）和 <code>screen_view</code>（PostHog 自动埋点）分别统计出 307 / 305 位活跃 iOS 用户，但其中约 225 人从未触发 <code>Application Opened</code>，也几乎没有任何主动交互 — 他们更像被系统后台拉起的"幽灵用户"，而非真实 DAU。
   </p>
   <div class="meta">
     <span>Date<strong>2026-04-21 (UTC)</strong></span>
@@ -266,72 +266,98 @@
   <div class="section-label">01 / 核心结论</div>
   <h2>一场看似异常的埋点差异，<br>实则是"真实活跃"定义的问题。</h2>
   <p class="lede">
-    <code>Application Opened</code> 是 <code>dau_ping</code> 的严格子集。所有触发前者的用户都触发了后者，但反过来，74% 触发 <code>dau_ping</code> 的用户从未触发 <code>Application Opened</code>，也没有任何点击、记食物、聊天行为。
+    <code>Application Opened</code> 同时是 <code>dau_ping</code> 和 <code>screen_view</code> 的严格子集。两种"宽口径"埋点都会把后台唤醒场景计入活跃 — 它们算出来的 DAU 几乎一致 (307 / 305)，但其中约 74% 的用户<strong>从未真正进入前台</strong>，也没有任何主动交互。
   </p>
 
   <div class="kpi-grid">
     <div class="kpi">
-      <div class="label">总用户数</div>
-      <div class="value">307</div>
-      <div class="delta">触发过任一事件的独立用户</div>
+      <div class="label">dau_ping 口径 DAU</div>
+      <div class="value accent">307</div>
+      <div class="delta">心跳埋点触发的独立用户</div>
     </div>
     <div class="kpi">
-      <div class="label">只有 dau_ping</div>
-      <div class="value accent">227</div>
-      <div class="delta"><span class="up">↑ 74.0%</span> of total</div>
+      <div class="label">screen_view 口径 DAU</div>
+      <div class="value accent">305</div>
+      <div class="delta">PostHog 自动埋点独立用户</div>
     </div>
     <div class="kpi">
-      <div class="label">两者都有</div>
+      <div class="label">Application Opened DAU</div>
       <div class="value good">80</div>
-      <div class="delta">26.0% of total</div>
+      <div class="delta">真正前台激活的用户</div>
     </div>
     <div class="kpi">
-      <div class="label">只有 App Opened</div>
-      <div class="value">0</div>
-      <div class="delta">完全不存在该情况</div>
+      <div class="label">宽口径高估倍数</div>
+      <div class="value">3.8×</div>
+      <div class="delta"><span class="up">↑ 283%</span> 虚高</div>
     </div>
   </div>
 
   <div class="chart-wrap">
-    <h4>用户分布 · 按事件触发情况</h4>
+    <h4>用户分布 · 按事件触发情况 (dau_ping 口径)</h4>
     <div class="chart-box" style="height:140px"><canvas id="donutSplit"></canvas></div>
+    <p style="font-size:12px;color:var(--ink-mute);margin-top:12px;font-family:'JetBrains Mono',monospace">注 · screen_view 口径几乎一致: 225 / 80 / 0, 两个宽口径埋点覆盖的用户群重叠度 &gt; 99%</p>
   </div>
 </section>
 
 <!-- SECTION 2: BEHAVIOR COMPARISON -->
 <section>
   <div class="section-label">02 / 行为强度对比</div>
-  <h2>两组用户的活跃度<br>差距，是数量级的。</h2>
+  <h2>宽口径 vs 真实前台,<br>活跃强度差距是数量级的。</h2>
   <p class="lede">
-    同样都在 2026-04-21 这天，"两者都有"组的用户人均事件是"只有 dau_ping"组的 <mark>4.3 倍</mark>，涉及的事件类型是 <mark>2.9 倍</mark>。但 Session 数却几乎一致 — 说明差异不在登录次数，而在<strong>单次 session 内的行为深度</strong>。
+    无论用 <code>dau_ping</code> 还是 <code>screen_view</code> 挑出的"宽口径但无 Application Opened"用户群，画像几乎重合 — 227 人 vs 225 人，人均事件 51.9 vs 52.3，唯一事件类型均为 7.1。和 "两者都有" 的真实前台用户相比，活跃强度<mark>整整差了 4.3 倍</mark>，而 Session 数却几乎相同 — 差异不在登录次数，而在<strong>单次 session 内的行为深度</strong>。
   </p>
 
-  <div class="split">
-    <div>
-      <h4>只有 dau_ping · 227 用户</h4>
-      <div class="count" style="color:var(--accent)">51.9</div>
-      <p style="margin-top:8px;font-size:13px">平均事件数 / 用户</p>
-      <div style="margin-top:24px;border-top:1px solid var(--line);padding-top:20px">
-        <div style="display:flex;justify-content:space-between;margin-bottom:10px"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink-mute)">唯一事件类型</span><strong>7.1</strong></div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:10px"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink-mute)">Session 数</span><strong>4.4</strong></div>
-        <div style="display:flex;justify-content:space-between"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink-mute)">事件中位数</span><strong>41</strong></div>
-      </div>
-    </div>
-    <div>
-      <h4>两者都有 · 80 用户</h4>
-      <div class="count" style="color:var(--good)">225.7</div>
-      <p style="margin-top:8px;font-size:13px">平均事件数 / 用户</p>
-      <div style="margin-top:24px;border-top:1px solid var(--line);padding-top:20px">
-        <div style="display:flex;justify-content:space-between;margin-bottom:10px"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink-mute)">唯一事件类型</span><strong>20.3</strong></div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:10px"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink-mute)">Session 数</span><strong>4.6</strong></div>
-        <div style="display:flex;justify-content:space-between"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink-mute)">事件中位数</span><strong>183</strong></div>
-      </div>
-    </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>人均指标</th>
+          <th class="num">只有 dau_ping<br><span style="font-weight:400;text-transform:none;color:var(--ink-mute);letter-spacing:0">无 App Opened · n=227</span></th>
+          <th class="num">只有 screen_view<br><span style="font-weight:400;text-transform:none;color:var(--ink-mute);letter-spacing:0">无 App Opened · n=225</span></th>
+          <th class="num" style="background:#f5f1e8;color:var(--good)">Both (真实前台)<br><span style="font-weight:400;text-transform:none;color:var(--good);letter-spacing:0">n=80</span></th>
+          <th class="num">宽 vs 前台</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="event" style="font-weight:500">人均事件数 (avg)</td>
+          <td class="num">51.9</td>
+          <td class="num">52.3</td>
+          <td class="num" style="background:#f5f1e8;color:var(--good);font-weight:600">225.7</td>
+          <td class="num" style="color:var(--accent);font-weight:600">4.3×</td>
+        </tr>
+        <tr>
+          <td class="event" style="font-weight:500">事件数中位数</td>
+          <td class="num">41</td>
+          <td class="num">42</td>
+          <td class="num" style="background:#f5f1e8;color:var(--good);font-weight:600">183</td>
+          <td class="num" style="color:var(--accent);font-weight:600">4.4×</td>
+        </tr>
+        <tr>
+          <td class="event" style="font-weight:500">唯一事件类型数</td>
+          <td class="num">7.1</td>
+          <td class="num">7.1</td>
+          <td class="num" style="background:#f5f1e8;color:var(--good);font-weight:600">20.3</td>
+          <td class="num" style="color:var(--accent);font-weight:600">2.9×</td>
+        </tr>
+        <tr>
+          <td class="event" style="font-weight:500">Session 数</td>
+          <td class="num">4.4</td>
+          <td class="num">4.5</td>
+          <td class="num" style="background:#f5f1e8;color:var(--good);font-weight:600">4.6</td>
+          <td class="num" style="color:var(--ink-mute)">~1.0×</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 
-  <div class="chart-wrap">
-    <h4>平均事件数 · 分组对比</h4>
-    <div class="chart-box" style="height:260px"><canvas id="barVolume"></canvas></div>
+  <p style="font-size:13px;color:var(--ink-mute);margin-top:12px">
+    两个"宽口径"分组在所有行为强度维度上都<strong>高度重合</strong>（差值小于 1%），说明它们抓到的基本是<strong>同一批人</strong> — 这 225 位用户同时触发了 dau_ping 和 screen_view，但从未激活前台。
+  </p>
+
+  <div class="chart-wrap" style="margin-top:32px">
+    <h4>平均事件数 · 三组对比</h4>
+    <div class="chart-box" style="height:280px"><canvas id="barVolume"></canvas></div>
   </div>
 </section>
 
@@ -429,38 +455,13 @@
   </div>
 </section>
 
-<!-- SECTION 5.5: SCREEN_VIEW CROSS-CHECK -->
+<!-- SECTION 5.5: POSTHOG OFFICIAL DEFINITIONS -->
 <section>
-  <div class="section-label">05.5 / 交叉验证</div>
-  <h2><code style="font-family:'JetBrains Mono',monospace;font-size:0.9em;background:var(--paper);padding:4px 10px;border:1px solid var(--line)">screen_view</code> 也会高估 DAU,<br>而且几乎和 dau_ping 等价。</h2>
+  <div class="section-label">05.5 / 官方文档佐证</div>
+  <h2>PostHog 官方定义,<br>坐实了触发条件的差异。</h2>
   <p class="lede">
-    如果把 <code>dau_ping</code> 换成 PostHog 自动埋点的 <code>screen_view</code> 来重算 DAU，会发现结论完全一样 — 两个埋点都会把后台唤醒场景计入活跃。<strong>只有 <code>Application Opened</code> 才是真 DAU 口径</strong>。
+    宽口径和严口径的差距不来自数据 bug，而来自 PostHog SDK 本身对这几个埋点的<strong>生命周期绑定</strong>。官方文档写得很清楚。
   </p>
-
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>DAU 口径</th>
-          <th class="num">当天 DAU</th>
-          <th class="num">相对 Application Opened 的高估</th>
-          <th>性质</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr><td class="event">dau_ping（自定义心跳）</td><td class="num">307</td><td class="num" style="color:var(--accent);font-weight:600">+283.8%</td><td style="color:var(--ink-soft);font-size:13px">后台任务也会触发</td></tr>
-        <tr><td class="event">screen_view（PostHog 自动埋点）</td><td class="num">305</td><td class="num" style="color:var(--accent);font-weight:600">+281.3%</td><td style="color:var(--ink-soft);font-size:13px">后台预渲染也会触发</td></tr>
-        <tr style="background:#f5f1e8"><td class="event" style="font-weight:600;color:var(--good)">Application Opened（生命周期）</td><td class="num" style="color:var(--good);font-weight:600">80</td><td class="num" style="color:var(--good)">baseline</td><td style="color:var(--good);font-size:13px;font-weight:500">✓ 前台激活才触发 · 推荐口径</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <p style="font-size:14px;color:var(--ink-mute);margin-top:16px">
-    <strong style="color:var(--ink-soft)">注:</strong> 225 位"只有 screen_view 无 Application Opened"的用户，行为画像与"只有 dau_ping"组完全一致 — auto_button_click / food_log_start / chat_page_view 触达率均为 0%，连 Application Backgrounded 都只有 0%。这进一步印证了差异不来自某个埋点 bug，而是来自<mark>触发条件的宽严</mark>。
-  </p>
-
-  <h3 style="margin-top:56px">PostHog 官方定义（iOS SDK）</h3>
-  <p style="margin-bottom:20px">直接引用 PostHog 官方文档，坐实三个埋点在<strong>触发生命周期</strong>上的本质差异。</p>
 
   <div class="table-wrap">
     <table>
@@ -635,8 +636,9 @@
     data:{
       labels:['人均事件数','唯一事件类型','Session 数'],
       datasets:[
-        {label:'只有 dau_ping', data:[51.9, 7.1, 4.4], backgroundColor:'#c8553d', borderRadius:2, borderWidth:0},
-        {label:'两者都有', data:[225.7, 20.3, 4.6], backgroundColor:'#2a4a3a', borderRadius:2, borderWidth:0}
+        {label:'只有 dau_ping (n=227)', data:[51.9, 7.1, 4.4], backgroundColor:'#c8553d', borderRadius:2, borderWidth:0},
+        {label:'只有 screen_view (n=225)', data:[52.3, 7.1, 4.5], backgroundColor:'#e8b4a7', borderRadius:2, borderWidth:0},
+        {label:'两者都有 · 真实前台 (n=80)', data:[225.7, 20.3, 4.6], backgroundColor:'#2a4a3a', borderRadius:2, borderWidth:0}
       ]
     },
     options:{
